@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>TestApp Api</title>
+
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@100;300;400&display=swap" rel="stylesheet">
+
+	<style type="text/css">
+		html {
+			line-height: 1;
+			font-family: 'Montserrat', sans-serif;
+		}
+		body {
+			margin: 0;
+			display: flex;
+			height: 100vh;
+			justify-content: center;
+			align-items: center;
+
+			font-size: 7px;
+		}
+		section {
+			display: block;
+			padding: 10rem;
+			padding-bottom: 30rem;
+		}
+		h1 {
+			text-align: center;
+			font-size: 4.2rem;
+			margin-bottom: .5rem;
+		}
+		form {
+			display: flex;
+			flex-direction: column;
+			width: 45rem;
+			margin: 0rem;
+		}
+		input, select, textarea, button {
+			margin: 1rem 0rem;
+			font-family: 'Montserrat', sans-serif;
+		}
+		input, select, button {
+			height: 3rem;
+			padding: 0rem 1.5rem;
+			
+		}
+		textarea {
+			height: 11.1rem;
+			padding: 1rem;
+			font-size: 1.3rem;
+			resize: none;
+		}
+		button {
+			border: 0rem;
+			outline: 0rem;
+			background-color: #186AE2;
+			border-radius: 1rem;
+			font-size: 1.3rem;
+			color:  #ffffff;
+		}
+		button:hover {
+			background-color: #1846E2;
+			cursor: pointer;
+		}
+		span {
+			display: none;
+			text-align: right;
+			font-size: 1.1rem;
+			padding-right: 1.5rem;
+			color: #ff0000;
+		}
+		input.error ~ span {
+			display: block;
+		}
+
+		.error, .error::placeholder {
+			color: #ff0000;
+		}
+	</style>
+</head>
+	<body>
+
+		{% if data.type == None %}
+			<!-- Base form. -->
+			<section>
+				<h1>TestApp Api</h1>
+				<form method='post' id="api_form" accept-charset="UTF-8">
+					<input id="amount" name="amount" type="number" placeholder="Amount">
+					<span id="amount_error_field"></span>
+					<select id="currency" name="currency">
+						<option value="978">EUR</option>
+						<option value="840">USD</option>
+						<option value="980">UAH</option>
+					</select>
+					<textarea id="description" name="description" placeholder="Description"></textarea>
+					<button type="button" id="send">Send</button>
+				</form>
+			</section>
+			<script>
+				const api_form = document.getElementById('api_form')
+				const amount = document.getElementById('amount')
+				const send = document.getElementById('send')
+
+				const api_url = document.location.origin + "/api/"
+				api_form.action = api_url
+
+
+				function validate(){
+					//Get all fields with errors and errors massages.
+					let status = {
+						is_valid: true,
+						errors: []
+					}
+					if(amount.value == ''){
+						status.errors.push([amount, "The field must not be empty!"])
+					}
+
+					if(status.errors.length > 0){
+						status.is_valid=false
+					}
+					return status
+				}
+				function clearErrors(){
+					//Get all fields with errors and remove the error class.
+					Array.from(document.getElementsByClassName('error')).forEach((element)=>{
+						if(element != null){
+							element.classList.remove('error')
+							document.getElementById(element.id + "_error_field").innerHTML = ""
+							element.oninput = null
+						}
+					})
+				}
+				function viewErrors(status){
+					//Set all errors in fields.
+					status.errors.forEach((element)=>{
+						let error_field = document.getElementById(element[0].id + "_error_field")
+						if(error_field.innerHTML == ''){
+							error_field.innerHTML += element[1]
+						}
+						else{
+							error_field.innerHTML += " " + element[1]
+						}
+
+						element[0].classList.add('error')
+						
+						element[0].oninput = ()=>{
+							clearErrors()
+							viewErrors(validate())
+						}
+					})
+				}
+
+				send.addEventListener('click', (e)=>{
+					e.preventDefault()
+					clearErrors()
+					let error_status = validate()
+					if(error_status.is_valid){
+						api_form.submit()
+					}else{
+						viewErrors(error_status)
+					}
+				})
+			</script>
+		{% elif data.type == 'pay' %}
+			<!-- Form for pay invoice. There is a redirect with form data. -->
+			<section>
+				<h1>TestApp Api (Pay)</h1>
+				<form method='post' id="api_form" action="https://pay.piastrix.com/ru/pay" accept-charset="UTF-8">
+					<input type="hidden" name="amount" value="{{data.amount}}"/>
+					<input type="hidden" name="currency" value="{{data.currency}}"/>
+					<input type="hidden" name="shop_id" value="{{data.shop_id}}"/>
+					<input type="hidden" name="sign" value="{{data.sign}}"/>
+					<input type="hidden" name="shop_order_id" value="{{data.shop_order_id}}"/>
+					<input type="hidden" name="description" value="{{data.description}}"/>
+				</form>
+			</section>
+			<script>
+				const api_form = document.getElementById('api_form')
+				api_form.submit()
+			</script>
+		{% elif data.type == 'bill' %}
+			<!-- Form for create bill. There is a redirect with form data. -->
+			{% if data.error_code == 0%}
+				<section>
+					<h1>TestApp Api (Bill)</h1>
+				</section>
+				<script>
+					window.location.replace("{{data.data.url}}")
+				</script>
+			{% else %}
+				<section>
+					<h1>TestApp Api (Bill)</h1>
+					<h3>{{data.message}}</h3>
+				</section>
+			{% endif %}
+		{% elif data.type == 'invoice' %}
+			<!-- Form for create invoice. There is a redirect with form data. -->
+			<section>
+				<h1>TestApp Api (Invoice)</h1>
+				<form id="api_form" method="{{data.data.method}}" action="{{data.data.url}}">
+					{% for key, value in data.data.data.items() %}
+						<input type="hidden" name="{{key}}" value="{{value}}">
+					{% endfor %}
+				</form>
+				<script>
+					const api_form = document.getElementById('api_form')
+					api_form.submit()
+				</script>
+			</section>
+		{% else %}
+			<!-- Error. -->
+			<h2>Something went wrong :(</h2>
+		{% endif %}
+	</body>
+</html>
